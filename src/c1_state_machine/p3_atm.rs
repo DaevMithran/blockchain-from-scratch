@@ -58,7 +58,51 @@ impl StateMachine for Atm {
     type Transition = Action;
 
     fn next_state(starting_state: &Self::State, t: &Self::Transition) -> Self::State {
-        todo!("Exercise 4")
+        let mut new_state =  starting_state.clone();
+        match t {
+            Action::PressKey(num) => {
+                match starting_state.expected_pin_hash {
+                    Auth::Authenticated => {
+                    if *num == Key::Enter {
+                        // if new_state.cash_inside < new_state.keystroke_register {
+                        //     new_state.expected_pin_hash = Auth::Waiting;
+                        //     new_state.keystroke_register.clear();
+                        // } else {
+                        //     new_state.cash_inside = new_state.cash_inside - new_state.keystroke_register,
+                        //     new_state.keystroke_register.clear();
+                        // }
+                    } else {
+                        new_state.keystroke_register.push(num.clone());
+                    }
+                        new_state
+                    },
+                    Auth::Authenticating(pin) => {
+                        if *num == Key::Enter {
+                             if crate::hash(&pin) == crate::hash(&starting_state.keystroke_register) {
+                               new_state.expected_pin_hash = Auth::Authenticated;
+                               new_state.keystroke_register.clear();
+                            } else {
+                                new_state.expected_pin_hash = Auth::Waiting;
+                                new_state.keystroke_register.clear();
+                            }
+                        } else {
+                            new_state.keystroke_register.push(num.clone());
+                        }
+                        new_state
+                    },
+                    _ => new_state
+                }
+            },
+            Action::SwipeCard(num) => {
+                match starting_state.expected_pin_hash {
+                    Auth::Waiting => {
+                        new_state.expected_pin_hash = Auth::Authenticating(*num);
+                        new_state 
+                    },
+                    _ => new_state
+                }
+            }
+        }
     }
 }
 
