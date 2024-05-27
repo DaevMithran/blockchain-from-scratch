@@ -64,13 +64,22 @@ impl StateMachine for Atm {
                 match starting_state.expected_pin_hash {
                     Auth::Authenticated => {
                     if *num == Key::Enter {
-                        // if new_state.cash_inside < new_state.keystroke_register {
-                        //     new_state.expected_pin_hash = Auth::Waiting;
-                        //     new_state.keystroke_register.clear();
-                        // } else {
-                        //     new_state.cash_inside = new_state.cash_inside - new_state.keystroke_register,
-                        //     new_state.keystroke_register.clear();
-                        // }
+                        let mut amount_string = String::new();
+                        for i in &starting_state.keystroke_register {
+                            match i {
+                                Key::One => amount_string.push('1'),
+                                Key::Two => amount_string.push('2'),
+                                Key::Three => amount_string.push('3'),
+                                Key::Four => amount_string.push('4'),
+                                _ => ()
+                            }
+                        }
+                        let cash_requested =  amount_string.parse().unwrap();
+                        if new_state.cash_inside >= cash_requested {
+                            new_state.cash_inside = new_state.cash_inside - cash_requested;
+                        }
+                        new_state.keystroke_register.clear();
+                        new_state.expected_pin_hash = Auth::Waiting;
                     } else {
                         new_state.keystroke_register.push(num.clone());
                     }
@@ -78,7 +87,7 @@ impl StateMachine for Atm {
                     },
                     Auth::Authenticating(pin) => {
                         if *num == Key::Enter {
-                             if crate::hash(&pin) == crate::hash(&starting_state.keystroke_register) {
+                             if pin == crate::hash(&starting_state.keystroke_register) {
                                new_state.expected_pin_hash = Auth::Authenticated;
                                new_state.keystroke_register.clear();
                             } else {
@@ -87,6 +96,7 @@ impl StateMachine for Atm {
                             }
                         } else {
                             new_state.keystroke_register.push(num.clone());
+
                         }
                         new_state
                     },
