@@ -54,6 +54,14 @@ impl State {
         self.bills.insert(elem);
         self.increment_serial()
     }
+
+    fn remove_bill(&mut self, elem: Bill) {
+        self.bills.remove(&elem);
+    }
+
+    fn validate_bill(&self, elem: Bill) -> bool {
+        self.bills.get(&elem).is_some()
+    }
 }
 
 impl FromIterator<Bill> for State {
@@ -94,7 +102,66 @@ impl StateMachine for DigitalCashSystem {
     type Transition = CashTransaction;
 
     fn next_state(starting_state: &Self::State, t: &Self::Transition) -> Self::State {
-        todo!("Exercise 1")
+        use CashTransaction::*;
+
+        let mut new_state = starting_state.clone();
+        match t {
+            Mint {minter, amount}=> {
+                new_state.add_bill(Bill {
+                    owner: *minter,
+                    amount: *amount,
+                    serial: new_state.next_serial()
+                });
+            },
+            Transfer { spends, receives }=> {
+                let mut spent_sum = 0;
+                let mut serials = HashSet::new();
+
+                for i in spends {
+                    if serials.get(&i.serial).is_some() {
+                        return new_state;
+                    };
+
+                    if new_state.validate_bill(i.clone()) == false {
+                        return new_state;
+                    }
+
+                    println!("{}", i.amount);
+                    spent_sum += i.amount;
+                    serials.insert(i.serial);
+                }
+
+                for i in receives {
+                    if serials.get(&i.serial).is_some() {
+                        return new_state;
+                    };
+    
+                    if i.amount == 0 {
+                        return new_state;
+                    }
+    
+                    if spent_sum < i.amount {
+                        return new_state;
+                    } else {
+                        spent_sum -= i.amount;
+                    }
+                    serials.insert(i.serial);
+                }
+
+                for i in spends {
+                    new_state.remove_bill(Bill { owner: i.owner, amount: i.amount, serial: i.serial });
+                }
+
+                for i in receives {
+                    if i.serial != new_state.next_serial() {
+                        return starting_state.clone();
+                    } 
+                    new_state.add_bill(Bill { owner: i.owner, amount: i.amount, serial: i.serial });
+                }
+            },    
+        };
+
+        new_state
     }
 }
 
